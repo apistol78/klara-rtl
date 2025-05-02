@@ -1,0 +1,64 @@
+--[[
+ Klara-RTL
+ Copyright (c) 2025 Anders Pistol.
+
+ This Source Code Form is subject to the terms of the Mozilla Public
+ License, v. 2.0. If a copy of the MPL was not distributed with this
+ file, You can obtain one at https://mozilla.org/MPL/2.0/.
+]]
+
+import (traktor)
+
+SOURCE =
+{
+	"audio/AUDIO_controller.v",
+	"audio/AUDIO_i2s_output.v",
+	"audio/AUDIO_pwm_output.v",
+	"block/BRAM_1r1w.v",
+	"block/BRAM_1rw1rw.v",
+	"block/BRAM_clear.v",
+	"block/BRAM_dual_latency.v",
+	"block/BRAM_latency.v",
+	"block/BRAM.v",
+	"block/BROM.v",
+	"fifo/FIFO_BRAM.v",
+	"fifo/FIFO.v",
+	"sdram/SDRAM_controller.v",
+	"sram/SRAM_controller.v",
+	"video/VIDEO_controller.v",
+	"video/VIDEO_LCD_AT070NTN92.v",
+	"video/VIDEO_LCD_i80_16bit.v",
+	"video/VIDEO_LCD_i80_SPI.v",
+	"video/VIDEO_VGA.v",
+	"ClockDivider.v",
+	"WriteBuffer.v",
+}
+
+function main()
+
+	-- Ensure we can launch yosys before all else.
+	if os:whereIs("yosys") == nil then
+		stderr:printLn("Unable to locate yosys; ensure it's accessible through PATH.")
+		return 1
+	end
+
+	-- Convert all SystemVerilog into Verilog files.
+	run:run("generate-verilog.run")
+
+	-- Concatenate all source files.
+	local f = ""
+	for _, s in ipairs(SOURCE) do
+		f = f .. " rtl-v/" .. s
+	end
+
+	run:mkdir("build")
+	run:rm("build/Verify.bit")
+	
+	local xc = run:execute("yosys -p \"opt; share -aggressive; synth_ecp5 -json build/Verify.json\" " .. f)
+	if xc ~= 0 then
+		stderr:printLn("yosys failed; build aborted.")
+		return 1
+	end
+
+	stdout:printLn("Synthesize successful.")
+end
